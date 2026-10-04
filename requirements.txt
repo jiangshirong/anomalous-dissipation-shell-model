@@ -1,0 +1,2 @@
+# Verified environment: Python 3.11, SymPy 1.12.
+sympy==1.12
