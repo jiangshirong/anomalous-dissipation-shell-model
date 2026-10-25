@@ -1,0 +1,18 @@
+License scope
+=============
+
+Original research documents, including the README files, AGENTS.md,
+RESEARCH_HANDOFF.md, docs/ and references/README.md, are licensed under
+Creative Commons Attribution 4.0 International (CC BY 4.0).
+See LICENSES/CC-BY-4.0.txt.
+
+Original programs in tests/ and audits/, their configuration and dependency
+lists, are licensed under the MIT License. See LICENSES/MIT.txt.
+Copyright (c) 2026 Jiang Shirong.
+
+This grant covers original material whose rights are held by the repository
+author. Third-party quotations, bibliographic material, software and other
+attributed material retain their respective rights and licenses.
+
+Local manuscripts, submitted versions, correspondence, downloaded papers and
+build tools are not distributed here and are not covered by this license grant.

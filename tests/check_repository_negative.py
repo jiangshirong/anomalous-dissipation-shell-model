@@ -1,129 +1,150 @@
-"""Exercise upload-scope failures in temporary repositories; leave real files untouched."""
+"""Exercise publication-scope failures in disposable repositories only."""
 from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
+from tempfile import TemporaryDirectory
+import argparse
+import json
 import shutil
 import subprocess
-import sys
-from tempfile import TemporaryDirectory
-from check_repository import ALLOWED, LOCAL_MANUSCRIPTS, ROOT, check
+from check_repository import ROOT, MANIFEST, check, manifest_files, anchors, links
+
+
+def command(root, *args, input_data=None):
+    return subprocess.run(['git', '-C', str(root), *args], input=input_data, capture_output=True, check=True).stdout
+
 
 def stage(root, *names, force=False):
-    subprocess.run(['git', '-C', str(root), 'add', *(['-f'] if force else []),
-                    '--', *names], check=True, capture_output=True)
+    command(root, 'add', *(['-f'] if force else []), '--', *names)
 
-def fixture(root, local=False):
-    for name in ALLOWED | (LOCAL_MANUSCRIPTS if local else set()):
-        target = root/name
+
+def fixture(root):
+    allowed = manifest_files(ROOT)
+    for name in allowed:
+        target = root / name
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(ROOT/name, target)
-    subprocess.run(['git', '-C', str(root), 'init', '-q'], check=True)
-    stage(root, *sorted(ALLOWED))
+        shutil.copyfile(ROOT / name, target)
+    command(root, 'init', '-q')
+    command(root, 'config', 'core.autocrlf', 'false')
+    stage(root, *sorted(allowed))
+    return allowed
 
-def append(root, name, text, sync=True):
-    path = root/name
-    path.write_text(path.read_text(encoding='utf-8')+'\n'+text+'\n', encoding='utf-8')
-    if sync:
+
+def append(root, name, content, staged=True):
+    path = root / name
+    path.write_text(path.read_text(encoding='utf-8-sig') + '\n' + content + '\n', encoding='utf-8')
+    if staged:
         stage(root, name)
 
-def verify(root, scenario, expected=None, local=False):
+
+def verify(root, scenario, expected=None, staged=True):
     try:
         with redirect_stdout(StringIO()):
-            check(root, staged=True, local_manuscripts=local)
+            check(root, staged=staged)
     except AssertionError as error:
-        assert expected is not None and expected in str(error), (scenario, str(error))
-        print(scenario+': expected failure PASS')
+        assert expected is not None and expected in str(error), (scenario, str(error), expected)
+        print(scenario + ': expected failure PASS')
     else:
-        assert expected is None, scenario+' was not detected'
-        print(scenario+': PASS')
+        assert expected is None, scenario + ' was not detected'
+        print(scenario + ': PASS')
+
 
 def main():
     cases = {
-        'research-only-baseline': None,
+        'staged-baseline': None,
+        'working-tree-baseline': None,
+        'legitimate-mathematical-colons': None,
         'missing-file': 'Missing or linked file',
         'bad-link': 'Unpublished or missing link',
         'bad-anchor': 'Unknown heading link',
-        'unexpected-file': 'Unexpected synchronized files',
-        'forced-manuscript': 'Unexpected synchronized files',
-        'forced-submission': 'Unexpected synchronized files',
-        'forced-pdf': 'Unexpected synchronized files',
+        'outside-repository-link': 'Link leaves repository',
+        'forced-local-paper': 'Index differs from publication manifest',
+        'forced-unapproved-file': 'Index differs from publication manifest',
+        'private-path-in-manifest': 'Forbidden publication path',
+        'paper-path-in-manifest': 'Forbidden publication path',
         'bad-fence': 'Unpaired code fence',
-        'missing-staged-file': 'Missing staged file',
-        'staged-bad-link-safe-working-copy': 'Unpublished or missing link',
-        'bilingual-readme-formula': 'Bilingual README formula mismatch',
-        'bilingual-readme-navigation': 'Bilingual README navigation mismatch',
+        'bad-display-math': 'Unpaired display math',
         'missing-language-switch': 'Missing README language switch',
+        'bilingual-formula': 'Bilingual README formula mismatch',
+        'bilingual-navigation': 'Bilingual README navigation mismatch',
+        'staged-bad-working-good': 'Unpublished or missing link',
+        'staged-ignore-bad-working-good': 'Ignore policy does not match',
+        'missing-staged-file': 'Index differs from publication manifest',
+        'unmerged-file': 'Unmerged index file',
+        'index-symlink': 'Linked or unsupported index file',
+        'machine-local-path': 'Machine-local path',
+        'machine-local-backslash-path': 'Machine-local path',
+        'machine-local-path-in-math': 'Machine-local path',
+        'credential-pattern': 'Credential-like material',
+        'broad-ignore-exception': 'Ignore policy does not match',
+        'noncanonical-manifest-path': 'Noncanonical publication path',
     }
     for scenario, expected in cases.items():
-        with TemporaryDirectory(prefix='shell-research-check-') as folder:
+        with TemporaryDirectory(prefix='shell-public-check-') as folder:
             root = Path(folder)
             fixture(root)
+            working = scenario in {'working-tree-baseline', 'missing-file'}
             if scenario == 'missing-file':
-                (root/'docs/03-results-zh.md').unlink()
-            elif scenario in {'bad-link', 'bad-anchor', 'staged-bad-link-safe-working-copy'}:
-                path = root/'README.md'
-                original = path.read_text(encoding='utf-8')
-                target = 'docs/03-results-zh.md#missing-heading' if scenario == 'bad-anchor' else 'docs/missing.md'
-                append(root, 'README.md', '[negative test]('+target+')')
-                if scenario == 'staged-bad-link-safe-working-copy':
-                    path.write_text(original, encoding='utf-8')
-            elif scenario in {'unexpected-file', 'forced-manuscript', 'forced-submission', 'forced-pdf'}:
-                name = {'unexpected-file': 'unapproved.txt',
-                        'forced-manuscript': 'manuscript/model.tex',
-                        'forced-submission': 'submission/jsp/metadata-en.md',
-                        'forced-pdf': 'output/pdf/paper.pdf'}[scenario]
-                path = root/name
+                (root / 'README.md').unlink()
+            elif scenario in {'bad-link', 'bad-anchor', 'outside-repository-link', 'staged-bad-working-good'}:
+                original = (root / 'README.md').read_bytes()
+                target = {'bad-anchor': 'README.md#missing-section', 'outside-repository-link': '../private.md'}.get(scenario, 'docs/missing-file.md')
+                append(root, 'README.md', '[negative fixture](' + target + ')')
+                if scenario == 'staged-bad-working-good':
+                    (root / 'README.md').write_bytes(original)
+            elif scenario in {'forced-local-paper', 'forced-unapproved-file'}:
+                name = 'local/papers/private.pdf' if scenario == 'forced-local-paper' else 'unreviewed.txt'
+                path = root / name
                 path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text('temporary fixture only\n', encoding='utf-8')
+                path.write_text('Disposable fixture only\n', encoding='utf-8')
                 stage(root, name, force=True)
+            elif scenario in {'private-path-in-manifest', 'paper-path-in-manifest', 'noncanonical-manifest-path'}:
+                name = {'private-path-in-manifest': 'local/notes.md', 'paper-path-in-manifest': 'docs/paper.pdf',
+                        'noncanonical-manifest-path': 'docs/../private.md'}[scenario]
+                path = root / MANIFEST
+                obj = json.loads(path.read_text(encoding='utf-8-sig'))
+                obj['files'].append(name)
+                path.write_text(json.dumps(obj), encoding='utf-8')
+                stage(root, MANIFEST)
             elif scenario == 'bad-fence':
                 append(root, 'README.md', '```')
-            elif scenario == 'missing-staged-file':
-                subprocess.run(['git', '-C', str(root), 'rm', '--cached', '--', 'README.zh-CN.md'],
-                               check=True, capture_output=True)
-            elif scenario == 'bilingual-readme-formula':
-                append(root, 'README.zh-CN.md', '```math\n1=2\n```')
-            elif scenario == 'bilingual-readme-navigation':
-                append(root, 'README.md', '[dependencies](requirements.txt)')
+            elif scenario == 'bad-display-math':
+                append(root, 'README.md', '$$')
             elif scenario == 'missing-language-switch':
-                path = root/'README.zh-CN.md'
-                path.write_text(path.read_text(encoding='utf-8').replace('[English](README.md)', 'English'),
-                                encoding='utf-8')
+                p = root / 'README.zh-CN.md'
+                p.write_text(p.read_text(encoding='utf-8-sig').replace('[English](README.md)', 'English'), encoding='utf-8')
                 stage(root, 'README.zh-CN.md')
-            verify(root, scenario, expected)
-
-    local_cases = {
-        'local-manuscripts-baseline': None,
-        'new-tex-ref': 'Unknown TeX references',
-        'new-tex-cite': 'Unknown bibliography references',
-        'missing-translation': 'Missing or linked file',
-        'bilingual-formula': 'Bilingual display formula mismatch',
-        'bad-tex-environment': 'Unclosed TeX environment',
-    }
-    local_available = all((ROOT/name).is_file() for name in LOCAL_MANUSCRIPTS)
-    if '--local-manuscripts' in sys.argv:
-        assert local_available, 'Local manuscript negative checks require the excluded local materials'
-    if not local_available:
-        local_cases = {}
-        print('Local manuscript negative checks skipped: excluded materials are absent.')
-    for scenario, expected in local_cases.items():
-        with TemporaryDirectory(prefix='shell-local-check-') as folder:
-            root = Path(folder)
-            fixture(root, local=True)
-            if scenario in {'new-tex-ref', 'new-tex-cite'}:
-                invalid = r'\eqref{missing-label}' if scenario == 'new-tex-ref' else r'\cite{missing-source}'
-                append(root, 'manuscript/sparse-modification.tex', invalid, sync=False)
-            elif scenario == 'missing-translation':
-                (root/'submission/jsp/cover-letter-zh.tex').unlink()
             elif scenario == 'bilingual-formula':
-                path = root/'manuscript/sparse-modification-zh.tex'
-                path.write_text(path.read_text(encoding='utf-8').replace(
-                    r'\end{document}', r'\[1=2\]'+'\n'+r'\end{document}', 1), encoding='utf-8')
-            elif scenario == 'bad-tex-environment':
-                append(root, 'submission/jsp/cover-letter-en.tex', r'\begin{proof}', sync=False)
-            verify(root, scenario, expected, local=True)
-    baselines = 1 + bool(local_cases)
-    print(f'Negative scenarios: {len(cases)+len(local_cases)-baselines} PASS; {baselines} baselines PASS; real workspace untouched.')
+                append(root, 'README.zh-CN.md', '```math\n1=2\n```')
+            elif scenario == 'bilingual-navigation':
+                title = sorted(anchors((root / 'README.md').read_text(encoding='utf-8-sig')))[0]
+                append(root, 'README.md', '[readme title](README.md#' + title + ')')
+            elif scenario in {'staged-ignore-bad-working-good', 'broad-ignore-exception'}:
+                original = (root / '.gitignore').read_bytes()
+                append(root, '.gitignore', '!docs/**')
+                if scenario == 'staged-ignore-bad-working-good':
+                    (root / '.gitignore').write_bytes(original)
+            elif scenario == 'missing-staged-file':
+                command(root, 'rm', '--cached', '--', 'README.md')
+            elif scenario in {'unmerged-file', 'index-symlink'}:
+                if scenario == 'index-symlink':
+                    blob = command(root, 'hash-object', '-w', '--stdin', input_data=b'../private\n').decode().strip()
+                    command(root, 'update-index', '--cacheinfo', '120000,' + blob + ',README.md')
+                else:
+                    blob = command(root, 'rev-parse', ':README.md').decode().strip()
+                    data = ('0 ' + '0' * 40 + '\tREADME.md\n100644 ' + blob + ' 1\tREADME.md\n').encode()
+                    command(root, 'update-index', '--index-info', input_data=data)
+            elif scenario == 'legitimate-mathematical-colons':
+                append(root, 'README.md', '```math\n' + r'V=\{a:\sum_n4^na_n^2<\infty\},\quad\sum_{j:\,0<\theta_j<1}r_j^{-1}' + '\n```\n' + r'Inline condition `j:\,0<\theta_j<1`.')
+                append(root, 'README.zh-CN.md', '```math\n' + r'V=\{a:\sum_n4^na_n^2<\infty\},\quad\sum_{j:\,0<\theta_j<1}r_j^{-1}' + '\n```\n' + r'行内条件 `j:\,0<\theta_j<1`。')
+            elif scenario in {'machine-local-path', 'machine-local-backslash-path', 'machine-local-path-in-math'}:
+                value = 'C:' + ('/Users/example/private' if scenario != 'machine-local-backslash-path' else '\\Users\\example\\private')
+                append(root, 'README.md', '```math\n' + value + '\n```' if scenario == 'machine-local-path-in-math' else value)
+            elif scenario == 'credential-pattern':
+                append(root, 'README.md', 'gh' + 'p_' + 'A' * 30)
+            verify(root, scenario, expected, staged=not working)
+    print('PASS: ' + str(sum(value is not None for value in cases.values())) + ' negative scenarios and 3 baselines; real index untouched.')
+
 
 if __name__ == '__main__':
     main()

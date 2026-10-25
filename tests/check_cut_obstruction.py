@@ -584,7 +584,7 @@ def logarithmic_exchange_checks():
 
 
 def integrated_tail_summability_checks():
-    """Boundary accounting and finite certificates for docs/03-results-zh.md section 3.2."""
+    """Boundary accounting and finite certificates for the logarithmic-exchange results (source section 3.2)."""
     eta, ell, ell_next, w, v, k, fourth = sp.symbols(
         "eta ell ellnext W V K fourth", positive=True)
     # Divide the weak-coordinate time integral by ell_n^2.
@@ -705,7 +705,7 @@ def sequential_gate_checks():
 
 
 def temporal_concentration_checks():
-    """Finite certificates for docs/03-results-zh.md section 3.3; no moment bound is assumed proven."""
+    """Finite certificates for the logarithmic-exchange results (source section 3.3); no moment bound is assumed proven."""
     eta, ell, k, v, w, concentration, window = sp.symbols(
         "eta ell K V W concentration T", positive=True)
     fourth = concentration*w*w/window
@@ -786,7 +786,7 @@ def startup_concentration_checks():
 
 
 def quantitative_dissipation_checks():
-    """Finite index and inequality certificates for docs/03-results-zh.md section 3.4."""
+    """Finite index and inequality certificates for the logarithmic-exchange results (source section 3.4)."""
     count = 0
     for power in (20, 21, 30, 31, 40, 41, 60, 61):
         nu = sp.Rational(1, 2)**power
@@ -822,7 +822,7 @@ def quantitative_dissipation_checks():
 
 
 def uniform_envelope_checks():
-    """Why docs/03-results-zh.md section 3.1 yields a viscosity-uniform envelope; finite certificates."""
+    """Why the logarithmic-exchange results (source section 3.1) yields a viscosity-uniform envelope; finite certificates."""
     eta, radius, window = sp.symbols("eta R T", positive=True)
     g = sp.symbols("g", positive=True)              # g = 2^alpha >= 1
     coefficient = eta*g**2*radius*sp.sqrt(window)   # B = eta 2^(2 alpha) R sqrt(T)
@@ -865,11 +865,11 @@ def uniform_envelope_checks():
 
 
 def finite_partial_sum_checks():
-    """docs/03-results-zh.md section 3.2: the surplus index is the one already closed by the envelope."""
+    """the logarithmic-exchange results (source section 3.2): the surplus index is the one already closed by the envelope."""
     eta, ell_next, w, z, second, flux, viscous = sp.symbols(
         "eta ellnext w z Y F nu4w", positive=True)
     # Single-layer weak-outlet balance: nonlinear flux plus the weak vertical edge plus
-    # the viscous remainder.  Dividing by (n+1)^(2 alpha) must reproduce docs/03-results-zh.md d_n.
+    # the viscous remainder.  Dividing by (n+1)^(2 alpha) must reproduce the logarithmic-exchange d_n.
     balance = flux+ell_next*w*z+viscous
     weight = sp.symbols("weight", positive=True)
     assert sp.simplify(balance/weight
@@ -896,7 +896,7 @@ def finite_partial_sum_checks():
 
 
 def cutoff_choice_checks():
-    """docs/03-results-zh.md section 3.4: m = floor(sqrt N) is not optimal, but m = 1 nearly is."""
+    """the logarithmic-exchange results (source section 3.4): m = floor(sqrt N) is not optimal, but m = 1 nearly is."""
     nu, level = sp.symbols("nu N", positive=True)
     # The attained harmonic sum is maximized at m = 1 and capped by log(N+2), which is
     # what forces the exponent O(1/log log(1/nu)): no cutoff choice can beat it.
@@ -942,7 +942,7 @@ def cutoff_choice_checks():
 
 
 def moment_ratio_obstruction_checks():
-    """docs/03-results-zh.md section 3.3: why I_n >= 1 and why the shell budget cannot bound sum V_n."""
+    """the logarithmic-exchange results (source section 3.3): why I_n >= 1 and why the shell budget cannot bound sum V_n."""
     window, wint, fourth, radius = sp.symbols("T W J R", positive=True)
     count = 0
     # I = T J / W^2 >= 1 by Cauchy-Schwarz on [0,T], with equality iff w^2 is time-constant.
@@ -980,7 +980,7 @@ def moment_ratio_obstruction_checks():
 
 
 def shell_budget_checks():
-    """docs/03-results-zh.md section 3.3: shell-wise budgets and the nu 4^n ~ 1 boundary."""
+    """the logarithmic-exchange results (source section 3.3): shell-wise budgets and the nu 4^n ~ 1 boundary."""
     count = 0
     # Unforced local algebra only. At the root the full energy balance also contains w+z.
     for k in range(4):

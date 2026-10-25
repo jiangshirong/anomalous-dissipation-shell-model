@@ -2,7 +2,7 @@
 
 这项工作早于当前正性壳模型，二者不共用方程或能量归一化。这里保存的是对**指定表达式**的历史审查，不声称上游最新版本仍未修改。
 
-来源是 `research-line/functional-stability-theory` 的两个脚本：`scripts/turbulence/compute_goy_shell_dfc.py` 和 `scripts/turbulence/compute_shell_dfc_waterline_ledger.py`。用户已提交 [Issue #1](https://github.com/research-line/functional-stability-theory/issues/1)；本次只整理本地材料，不更新该 Issue。
+来源是 `research-line/functional-stability-theory` 的两个脚本：`scripts/turbulence/compute_goy_shell_dfc.py` 和 `scripts/turbulence/compute_shell_dfc_waterline_ledger.py`。用户已提交 [Issue #1](https://github.com/research-line/functional-stability-theory/issues/1)；该历史检查独立于本仓库两项主成果。
 
 当时被审查的表达式为
 
@@ -25,6 +25,6 @@ python -m pip install -r requirements-audit.txt
 python audits/sabra/check_nonlinearity.py
 ```
 
-脚本是已保存表达式的独立转写，不下载或修改上游。它会在脚本旁的 `sabra_audit_results/` 生成 CSV、JSON 和报告；生成文件不入 Git。历史结果中 $k_0=1$、三个激活壳为 1、2、3 时总变化率为 −7。此次整理没有为当前研究重新开展一轮这个已提交反例的检验。
+脚本是已保存表达式的独立转写，不下载或修改上游。它会在脚本旁的 `sabra_audit_results/` 生成 CSV、JSON 和报告；生成文件不入 Git。历史结果中 $k_0=1$、三个激活壳为 1、2、3 时总变化率为 −7。该程序只复现已保存表达式。
 
-早期重复 Issue 草稿和长篇重复报告已从正式目录移出，保留在本地整理备份。它们不是当前模型的证明依赖。
+重复 Issue 草稿和重复报告不再维护；表达式、明确反例及独立复现程序在此保留。
